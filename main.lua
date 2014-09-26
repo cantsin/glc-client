@@ -1,6 +1,7 @@
 require "conf"
 require "library/fs"
 require "library/json"
+require "library/coords"
 
 glcd = require("library/glcd")
 layer = require("library/layer")
@@ -147,46 +148,6 @@ function love.fixed(dt)
     glcd.send("playerState", myState)
     stateChanged = false
   end
-end
-
--- Get current zone.
---  wx - number: World x-coordinate.
---  wy - number: World y-coordinate.
---  return - zone offset number, its transformed coordinates, and the selected zone object itself.
-function getZoneOffset(wx, wy)
-  local zpoint = nil
-  local zIndex = nil
-  local mZone = nil
-  local xOffset = 0
-
--- Assume 1-D horizontal zones for now.
---  for _, zone in pairs(zones) do
-  for idx = 1, #zones do
-    local zId = zones[idx].state.data.id
-    -- local zoneWidth = zone.state.tileset.width * zone.state.tileset.tilewidth
-    local zoneWidth = settings.zone_width * settings.tile_width -- For now until the server passes the sorted zones table from left to right
-    local zoneHeight = settings.zone_height * settings.tile_height -- For now until the server passes the sorted zones table from left to right
-    local wxMin = -1 * zId *  zoneWidth
-    local wyMin = -1 * zId *  zoneHeight
-    local wxMax = wxMin - zoneWidth
-    local wyMax = wyMin - zoneHeight
-    --print(string.format("getZoneOffset: idx=%d, wxy=(%d,%d), zId=%d, zoneDimen=(%d,%d), wxyMin=(%d,%d), wxyMax=(%d,%d)", idx, wx, wy, zId, zoneWidth, zoneHeight, wxMin, wyMin, wxMax, wyMax))
-
-    if wx <= wxMin and wx >= wxMax and wy <= wyMin and wy >= wyMax then
-      --print("getZoneOffset: Found! zId=", zId)
-      zpoint = {x = zId * wx, y = wy}
-      zIndex = idx;
-      mZone = zone
-      break
-    else
-      --print("getZoneOffset: Not found! zId=", zId)
-      xOffset = xOffset + zoneWidth
-    end
-
-    idx = idx + 1
-  end
-
-  return zIndex, zpoint, mZone
 end
 
 function hasCollision(mZone, x, y)
@@ -346,8 +307,6 @@ end
 function drawText(x, y, str, r, g, b)
   -- Draw Name
   local MAX_WIDTH_OF_TEXT = 200
-  local str_length = string.len(str) * 10
-  local background_offset = str_length / 2
   local str_offset = MAX_WIDTH_OF_TEXT / 2
 
   -- lpx is the position of the text relative to viewport offset,
@@ -360,22 +319,27 @@ function drawText(x, y, str, r, g, b)
   -- the screen.
   local rx = lpx * scaleX
   local ry = lpy * scaleY
+  love.graphics.push()
+  love.graphics.translate(rx, ry)
+  love.graphics.translate(- str_offset, 0)
 
+  -- fake outlines
   love.graphics.setColor(0, 0, 0, 255)
-  love.graphics.printf(str, rx - str_offset - 2, ry - 2, MAX_WIDTH_OF_TEXT, "center")
-  love.graphics.printf(str, rx - str_offset - 2, ry, MAX_WIDTH_OF_TEXT, "center")
-  love.graphics.printf(str, rx - str_offset - 2, ry + 2, MAX_WIDTH_OF_TEXT, "center")
+  love.graphics.printf(str, -2, -2, MAX_WIDTH_OF_TEXT, "center")
+  love.graphics.printf(str, -2,  0, MAX_WIDTH_OF_TEXT, "center")
+  love.graphics.printf(str, -2,  2, MAX_WIDTH_OF_TEXT, "center")
 
-  love.graphics.printf(str, rx - str_offset, ry - 2, MAX_WIDTH_OF_TEXT, "center")
-  love.graphics.printf(str, rx - str_offset, ry + 2, MAX_WIDTH_OF_TEXT, "center")
+  love.graphics.printf(str,  0, -2, MAX_WIDTH_OF_TEXT, "center")
+  love.graphics.printf(str,  0,  2, MAX_WIDTH_OF_TEXT, "center")
 
-  love.graphics.printf(str, rx - str_offset + 2, ry - 2, MAX_WIDTH_OF_TEXT, "center")
-  love.graphics.printf(str, rx - str_offset + 2, ry, MAX_WIDTH_OF_TEXT, "center")
-  love.graphics.printf(str, rx - str_offset + 2, ry + 2, MAX_WIDTH_OF_TEXT, "center")
+  love.graphics.printf(str,  2, -2, MAX_WIDTH_OF_TEXT, "center")
+  love.graphics.printf(str,  2,  0, MAX_WIDTH_OF_TEXT, "center")
+  love.graphics.printf(str,  2,  2, MAX_WIDTH_OF_TEXT, "center")
 
   -- Set color of text and fill in.
   love.graphics.setColor(r, g, b)
-  love.graphics.printf(str, rx - str_offset, ry, MAX_WIDTH_OF_TEXT, "center")
+  love.graphics.printf(str,  0,  0, MAX_WIDTH_OF_TEXT, "center")
+  love.graphics.pop()
 end
 
 function drawPlayer(name, player)
@@ -404,18 +368,13 @@ function drawPlayer(name, player)
     stateOffset = 0
   end
 
-  local quad = love.graphics.newQuad(frameOffset, stateOffset, 16, 16, image:getWidth(), image:getHeight())
-
-  -- rpx and rpy - Position relative to current player. For current
-  -- player, rpx+y will always be 0.
   local rpx = math.floor(px - p.X)
   local rpy = math.floor(py - p.Y)
-  -- lpx and lpy: Position relative to viewport (top-left of screen)
-  -- For current player, rpx and rpy are 0, so vpoffestx+y offset to the center
-  -- of screen.
-  local lpx = rpx + vpoffsetx
-  local lpy = rpy + vpoffsety
-  love.graphics.draw(image, quad, lpx, lpy, 0, 1, 1, 8, 8)
+  love.graphics.translate(rpx, rpy)
+  love.graphics.translate(vpoffsetx, vpoffsety)
+
+  local quad = love.graphics.newQuad(frameOffset, stateOffset, 16, 16, image:getWidth(), image:getHeight())
+  love.graphics.draw(image, quad, 0, 0, 0, 1, 1, 8, 8)
 end
 
 -- Avatar related functions
