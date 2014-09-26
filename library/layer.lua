@@ -22,6 +22,16 @@ function Layer:new(args)
   return self
 end
 
+-- transform a coordinate system to this layer
+-- TODO: account for self.r
+function Layer:coordinates(x, y)
+  return (x - self.x)*self.sx, (y - self.y)*self.sy
+end
+
+function Layer:midpoint()
+  return self.width/2, self.height/2
+end
+
 function Layer:activate()
   self.drawable = true
 end

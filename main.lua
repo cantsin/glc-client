@@ -71,11 +71,6 @@ function love.load()
   -- the console layer should always be seen.
   layers.console:activate()
 
-  bgCanvas = love.graphics.newCanvas(settings.tiles_per_row * settings.tile_width,
-                                   settings.tiles_per_column * settings.tile_height)
-  bgCanvas:setFilter("nearest", "nearest") -- linear interpolation
-  scaleX, scaleY = win.width / bgCanvas:getWidth(), win.height / bgCanvas:getHeight()
-
   -- set up the font
   local font = love.graphics.newFont("assets/Krungthep.ttf", 14)
   love.graphics.setFont(font)
@@ -96,11 +91,6 @@ function love.load()
   -- default player avatar
   AvatarId = "assets/avatars/ava1.png"
   AvatarState = 0
-
-  -- Viewport Offset. Since we want positions relative to the center of the
-  -- screen, vpoffsetx and vpoffsety are added to everything on _render_ only.
-  vpoffsetx = bgCanvas:getWidth() / 2
-  vpoffsety = bgCanvas:getHeight() / 2
 
   -- initialize other player data
   otherPlayers = {}
@@ -309,16 +299,9 @@ function drawText(x, y, str, r, g, b)
   local MAX_WIDTH_OF_TEXT = 200
   local str_offset = MAX_WIDTH_OF_TEXT / 2
 
-  -- lpx is the position of the text relative to viewport offset,
-  -- since 0,0 is top-left corner.
-  local lpx = x + vpoffsetx
-  local lpy = y + vpoffsety
+  local mx, my = layers.background:midpoint()
+  local rx, ry = layers.background:coordinates(mx + x, my + y)
 
-  -- Since the text is scaled differently than the main map, rx+ry are
-  -- conversions of lpx and lpy to the scaled locations relative to
-  -- the screen.
-  local rx = lpx * scaleX
-  local ry = lpy * scaleY
   love.graphics.push()
   love.graphics.translate(rx, ry)
   love.graphics.translate(- str_offset, 0)
@@ -368,10 +351,12 @@ function drawPlayer(name, player)
     stateOffset = 0
   end
 
+  local mx, my = layers.background:midpoint()
+  love.graphics.translate(mx, my)
+
   local rpx = math.floor(px - p.X)
   local rpy = math.floor(py - p.Y)
   love.graphics.translate(rpx, rpy)
-  love.graphics.translate(vpoffsetx, vpoffsety)
 
   local quad = love.graphics.newQuad(frameOffset, stateOffset, 16, 16, image:getWidth(), image:getHeight())
   love.graphics.draw(image, quad, 0, 0, 0, 1, 1, 8, 8)
