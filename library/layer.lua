@@ -1,23 +1,16 @@
-
 Layer = {}
+Layer.__index = Layer
 
--- TODO fix _.each bug
--- TODO fix oo bug (scale does not work, params are overriden)
--- TODO translation for overlay
--- TODO translation for world
--- TODO bug with drawable
+function Layer:new(args)
+  args = args or {}
+  local self = setmetatable({}, Layer)
 
--- TODO library/coords.lua
-
-function Layer:new(width, height, x, y, r)
-  setmetatable({}, self)
-  self.__index = self
-
-  self.width = width or win.width
-  self.height = height or win.height
-  self.x = x or 0
-  self.y = y or 0
-  self.r = r or 0
+  -- set defaults.
+  self.width = args.width or win.width
+  self.height = args.height or win.height
+  self.x = self.x or 0
+  self.y = self.y or 0
+  self.r = self.r or 0
   self.sx = win.width / self.width
   self.sy = win.height / self.height
   self.drawable = false
@@ -29,8 +22,12 @@ function Layer:new(width, height, x, y, r)
   return self
 end
 
-function Layer:set_drawable(drawable)
-  self.drawable = drawable == true -- anything else is false-y
+function Layer:activate()
+  self.drawable = true
+end
+
+function Layer:deactivate()
+  self.drawable = false
 end
 
 function Layer:clear()
@@ -52,9 +49,18 @@ function Layer:draw(fn, args)
     local closure = function()
       fn(unpack(args or {}))
     end
+    love.graphics.push()
     self.canvas:renderTo(closure)
+    love.graphics.pop()
     -- reset all graphic attributes as to avoid side-effects
     love.graphics.reset()
+  end
+end
+
+-- TODO this only applies to the last layer to be drawn.
+function Layer:background(r, g, b, a)
+  if self.drawable then
+    love.graphics.setBackgroundColor(r or 0, g or 0, b or 0, a or 0)
   end
 end
 

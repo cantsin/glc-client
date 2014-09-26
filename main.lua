@@ -2,7 +2,6 @@ require "conf"
 require "library/fs"
 require "library/json"
 
-_ = require("library/underscore")
 glcd = require("library/glcd")
 layer = require("library/layer")
 console = require("library/console")
@@ -61,12 +60,15 @@ function love.load()
 
   -- set up layers
   layers = {
-    background = layer:new(settings.tiles_per_row * settings.tile_width,
-                           settings.tiles_per_column * settings.tile_height),
-    splash = layer:new(),
-    console = layer:new(),
-    text = layer:new(),
+    background = layer:new{width = settings.tiles_per_row * settings.tile_width,
+                           height = settings.tiles_per_column * settings.tile_height},
+    splash = layer:new{},
+    console = layer:new{},
+    text = layer:new{},
   }
+
+  -- the console layer should always be seen.
+  layers.console:activate()
 
   bgCanvas = love.graphics.newCanvas(settings.tiles_per_row * settings.tile_width,
                                    settings.tiles_per_column * settings.tile_height)
@@ -81,7 +83,7 @@ function love.load()
   splash = true
   splash_screen.load()
   splash_time = love.timer.getTime()
-  layers.splash:set_drawable(true)
+  layers.splash:activate()
 
   -- load player asset
   avatars = {}
@@ -239,10 +241,9 @@ function love.update(dt)
     if elapsed > 1.0 then
       splash = false
       -- swap layers.
-      layers.splash:set_drawable(false)
-      layers.background:set_drawable(true)
-      layers.text:set_drawable(true)
-      layers.console:set_drawable(true)
+      layers.splash:deactivate()
+      layers.background:activate()
+      layers.text:activate()
       -- send message to everyone!
       glcd.send("chat", {Sender=glcd.name, Message="Player has entered the Game!"})
     end
@@ -283,14 +284,17 @@ end
 -- Where all the drawings happen, also runs continuously.
 function love.draw()
   -- on the start of each frame, clear all layers.
-  _.map(layers, function(l) l:clear() end)
   layers.splash:clear()
   layers.background:clear()
   layers.text:clear()
   layers.console:clear()
 
+  -- draw console layer first.
+  layers.console:draw(console.draw)
+
   if splash then
     layers.splash:draw(splash_screen.draw)
+    layers.splash:background(255, 255, 255, 0)
   else
     -- draw zones
     if #zones == 0 then
@@ -310,12 +314,7 @@ function love.draw()
     layers.text:draw(drawPlayerAttributes, {glcd.name, myPlayer})
   end
 
-  layers.console:draw(console.draw)
-
-  -- now render all layers.
-  _.each(layers, print)
-
-  -- function(l, x) l:render() end
+  -- now render all layers. order matters!
   layers.splash:render()
   layers.background:render()
   layers.text:render()
@@ -362,7 +361,6 @@ function drawText(x, y, str, r, g, b)
   local rx = lpx * scaleX
   local ry = lpy * scaleY
 
-  -- text, x, y, limit, align
   love.graphics.setColor(0, 0, 0, 255)
   love.graphics.printf(str, rx - str_offset - 2, ry - 2, MAX_WIDTH_OF_TEXT, "center")
   love.graphics.printf(str, rx - str_offset - 2, ry, MAX_WIDTH_OF_TEXT, "center")
