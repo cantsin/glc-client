@@ -2,7 +2,9 @@ require "conf"
 require "library/fs"
 require "library/json"
 
+_ = require("library/underscore")
 glcd = require("library/glcd")
+layer = require("library/layer")
 console = require("library/console")
 handlers = require("glcd-handlers")
 inspect = require("library/inspect")
@@ -57,19 +59,19 @@ function love.load()
   updateFixedInterval = 1.0 / updateFrequency
   timeAccum = 0.0
 
-  -- set up the canvas
+  -- set up layers
+  layers = {
+    background = layer:new(settings.tiles_per_row * settings.tile_width,
+                           settings.tiles_per_column * settings.tile_height),
+    splash = layer:new(),
+    console = layer:new(),
+    text = layer:new(),
+  }
+
   bgCanvas = love.graphics.newCanvas(settings.tiles_per_row * settings.tile_width,
                                    settings.tiles_per_column * settings.tile_height)
   bgCanvas:setFilter("nearest", "nearest") -- linear interpolation
   scaleX, scaleY = win.width / bgCanvas:getWidth(), win.height / bgCanvas:getHeight()
-
-  textCanvas = love.graphics.newCanvas(win.width, win.height)
-  textCanvas:setFilter("nearest", "nearest") -- linear interpolation
-
-  consoleCanvas = love.graphics.newCanvas(win.width, win.height)
-  consoleCanvas:setFilter("nearest", "nearest") -- linear interpolation
-  splashCanvas = love.graphics.newCanvas(win.width, win.height)
-  splashCanvas:setFilter("nearest", "nearest") -- linear interpolation
 
   -- set up the font
   local font = love.graphics.newFont("assets/Krungthep.ttf", 14)
@@ -79,6 +81,7 @@ function love.load()
   splash = true
   splash_screen.load()
   splash_time = love.timer.getTime()
+  layers.splash:set_drawable(true)
 
   -- load player asset
   avatars = {}
@@ -235,6 +238,12 @@ function love.update(dt)
     splash_screen.update(elapsed)
     if elapsed > 1.0 then
       splash = false
+      -- swap layers.
+      layers.splash:set_drawable(false)
+      layers.background:set_drawable(true)
+      layers.text:set_drawable(true)
+      layers.console:set_drawable(true)
+      -- send message to everyone!
       glcd.send("chat", {Sender=glcd.name, Message="Player has entered the Game!"})
     end
   end
@@ -271,61 +280,46 @@ function love.update(dt)
   end
 end
 
--- Given a canvas and a function that does graphical operations, make
--- sure the function operates only within the given canvas.
-function prepareCanvas(canvas, fn, args)
-  local closure = function()
-    fn(unpack(args or {}))
-  end
-  canvas:renderTo(closure)
-  -- reset all graphic attributes as to avoid side-effects
-  love.graphics.reset()
-end
-
 -- Where all the drawings happen, also runs continuously.
 function love.draw()
-
-  -- TODO add classes
-  -- TODO add toggle bit (for clear, draw)
-  -- TODO translation for overlay
-  -- TODO translation for world
-
-  -- always clear all canvases at start.
-  bgCanvas:clear(0, 0, 0, 0)
-  textCanvas:clear(0, 0, 0, 0)
-  consoleCanvas:clear(0, 0, 0, 0)
-  splashCanvas:clear(0, 0, 0, 0)
-
-  prepareCanvas(consoleCanvas, console.draw)
+  -- on the start of each frame, clear all layers.
+  _.map(layers, function(l) l:clear() end)
+  layers.splash:clear()
+  layers.background:clear()
+  layers.text:clear()
+  layers.console:clear()
 
   if splash then
-    prepareCanvas(splashCanvas, splash_screen.draw)
-    love.graphics.setBackgroundColor(255, 255, 255)
-    love.graphics.draw(splashCanvas, 0, 0, 0, 1, 1)
+    layers.splash:draw(splash_screen.draw)
   else
     -- draw zones
     if #zones == 0 then
       console.log("No zones found.")
     end
     for _, zone in pairs(zones) do
-      prepareCanvas(bgCanvas, zone.update)
+      layers.background:draw(zone.update)
     end
 
     -- draw other players
     for name, p in pairs(otherPlayers) do
-      prepareCanvas(bgCanvas, drawPlayer, {name, p})
-      prepareCanvas(textCanvas, drawPlayerAttributes, {name, p})
+      layers.background:draw(drawPlayer, {name, p})
+      layers.text:draw(drawPlayerAttributes, {name, p})
     end
 
-    prepareCanvas(bgCanvas, drawPlayer, {glcd.name, myPlayer})
-    prepareCanvas(textCanvas, drawPlayerAttributes, {glcd.name, myPlayer})
+    layers.background:draw(drawPlayer, {glcd.name, myPlayer})
+    layers.text:draw(drawPlayerAttributes, {glcd.name, myPlayer})
   end
 
-  -- draw layers.
-  love.graphics.setCanvas()
-  love.graphics.draw(bgCanvas, 0, 0, 0, scaleX, scaleY)
-  love.graphics.draw(textCanvas, 0, 0, 0, 1, 1)
-  love.graphics.draw(consoleCanvas, 0, 0, 0, 1, 1)
+  layers.console:draw(console.draw)
+
+  -- now render all layers.
+  _.each(layers, print)
+
+  -- function(l, x) l:render() end
+  layers.splash:render()
+  layers.background:render()
+  layers.text:render()
+  layers.console:render()
 end
 
 function drawPlayerAttributes(name, player)
