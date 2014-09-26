@@ -29,8 +29,6 @@ end
 -- Called only once when the game is started.
 function love.load()
 
-  love.graphics.reset()
-
   math.randomseed(os.time())
 
   -- start communication with the server.
@@ -364,9 +362,9 @@ end
 
 -- Avatar related functions
 function setAvatar(file)
-  print("setAvatar('" .. file .. "')")
+  --print("setAvatar('" .. file .. "')")
   if string.sub(file, -4) == ".png" then
-    print(" ... loading")
+    --print(" ... loading")
     avatars[file] = love.graphics.newImage(file)
     if defaultAvatar == nil then
       defaultAvatar = avatars[file]

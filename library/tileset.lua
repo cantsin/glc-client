@@ -35,7 +35,7 @@ local function load_tiles(tilesets)
   load_metalayers(tilesets)
 
   for k, v in ipairs(tilesets.tilesets) do
-    io.write("Loading tileset: " .. v.image)
+    --io.write("Loading tileset: " .. v.image)
     v.tileset = love.graphics.newImage(v.image)
     v.num_tile_rows = v.imageheight / v.tileheight
     v.num_tile_cols = v.imagewidth / v.tilewidth
@@ -55,7 +55,7 @@ local function load_tiles(tilesets)
       end
       ty = ty + v.tileheight
     end
-    print(" ... [tile #" .. v.firstgid .. " - " .. (v.lastgid) .. "]  DONE!")
+    --print(" ... [tile #" .. v.firstgid .. " - " .. (v.lastgid) .. "]  DONE!")
   end
   print("Done loading tilesets.")
   return tilesets
